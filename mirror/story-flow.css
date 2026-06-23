@@ -448,8 +448,7 @@ body.nt-story-video-active .nt-story-fixed-visual {
 /* ============================================================
    Story-copy polish (desktop showcase). Resting-position nudges,
    a red hero subtitle to match the thread, two extra paragraphs
-   that ride inside the copy block, and suppression of the transient
-   "Jo Mendes" thread copy at the footer hand-off. No change to the
+   that ride inside the copy block, and no change to the
    font/size/weight/line-height of the existing headline + subtitle.
    ============================================================ */
 
@@ -515,15 +514,6 @@ body.nt-story-active .hero-section.is-home:not(.power) .hero-title-flex h1.headi
   animation-delay: var(--nt-note-delay, 420ms);
 }
 
-/* 4. Footer hand-off: hide the transient "Jo Mendes" thread copy that
-   flashes while settling into the footer. The real footer markup (contact
-   text, links, scrub video, CTA, card layout) is a separate element and is
-   not affected. */
-.nt-story-copy-thread-item[data-story-thread-state="4"] .nt-story-copy {
-  opacity: 0;
-  visibility: hidden;
-}
-
 .nt-story-transition {
   position: fixed;
   inset: 0;
@@ -568,10 +558,6 @@ body.nt-story-active .hero-section.is-home:not(.power) .hero-title-flex h1.headi
   transform: translateZ(0);
 }
 
-.nt-story-transition[data-final-scrub] {
-  background-color: transparent;
-}
-
 .nt-story-transition-underlay {
   position: absolute;
   inset: 0;
@@ -583,13 +569,8 @@ body.nt-story-active .hero-section.is-home:not(.power) .hero-title-flex h1.headi
   display: block;
   pointer-events: none;
   user-select: none;
-  animation: nt-story-image-six-parallax var(--nt-transition-duration, 1800ms) cubic-bezier(0.2, 0.72, 0.16, 1) both;
-  will-change: opacity, transform;
-}
-
-.nt-story-transition[data-final-scrub] .nt-story-transition-video {
-  animation: nt-story-final-video-takeover 640ms cubic-bezier(0.2, 0.72, 0.16, 1) both;
-  will-change: transform;
+  opacity: 1;
+  will-change: opacity;
 }
 
 .nt-story-copy-rail {
@@ -611,6 +592,10 @@ body.nt-story-active .hero-section.is-home:not(.power) .hero-title-flex h1.headi
   animation-timing-function: cubic-bezier(0.2, 0.72, 0.16, 1);
   transform: translate3d(0, var(--nt-thread-from), 0);
   will-change: transform;
+}
+
+.nt-story-copy-thread.is-scrubbed {
+  animation: none;
 }
 
 .nt-story-copy-thread-item {
@@ -690,38 +675,6 @@ body.nt-story-active .hero-section.is-home:not(.power) .hero-title-flex h1.headi
   }
 }
 
-@keyframes nt-story-image-six-parallax {
-  0% {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-
-  62% {
-    opacity: 0.84;
-  }
-
-  100% {
-    opacity: 0;
-    transform: translate3d(0, -7vh, 0) scale(1.06);
-  }
-}
-
-/* Footer takeover: the dog video slides up over the still-mounted white quotes
-   overlay as a solid panel — the same parallax language as the overlay beats —
-   instead of cross-fading in by opacity over a re-revealed Process still. Opaque
-   throughout (no opacity keyframe) so there is no "awkward fade", and short/fixed
-   so it reads as one more beat while the video keeps playing to its final frame
-   underneath the settled panel. */
-@keyframes nt-story-final-video-takeover {
-  from {
-    transform: translate3d(0, 100%, 0);
-  }
-
-  to {
-    transform: translate3d(0, 0, 0);
-  }
-}
-
 @keyframes nt-loader-shell {
   0%,
   82% {
@@ -783,7 +736,7 @@ body.nt-story-active .footer-section::before {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-image: url("./story-assets/puppy-finale-focused.jpg?v=frame-parity-20260623-1");
+  background-image: url("./story-assets/atom-2-image-2.png?v=atom-2-reveal-scrub-20260623-1");
   background-position: center;
   background-size: cover;
   background-repeat: no-repeat;
@@ -798,6 +751,9 @@ body.nt-story-footer-scrub-ready .footer-section::before {
 body.nt-story-active .footer-section > * {
   position: relative;
   z-index: 2;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 body.nt-story-active .footer-section a,
@@ -819,26 +775,6 @@ body.nt-story-active .footer-section .footer-flex {
   inset: auto 0 0 0;
 }
 
-body.nt-story-active .footer-section .nt-story-footer-video {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center;
-  display: block;
-  opacity: 0;
-  pointer-events: none;
-  user-select: none;
-  transform: translateZ(0);
-  transition: opacity 180ms ease;
-}
-
-body.nt-story-footer-scrub-ready .footer-section .nt-story-footer-video {
-  opacity: 1;
-}
-
 body.nt-story-active .footer-section .footer-logo {
   display: none;
 }
@@ -850,8 +786,8 @@ body.nt-story-active .footer-section .render-container.is-mobile.footer {
 }
 
 body.nt-story-active .footer-section .footer-final::before {
-  content: "Jo Mendes";
-  display: block;
+  content: none !important;
+  display: none !important;
   color: var(--white);
   font-family: Helvetica Now Display, sans-serif;
   font-size: clamp(6rem, 13vw, 11rem);
@@ -862,160 +798,10 @@ body.nt-story-active .footer-section .footer-final::before {
   white-space: nowrap;
 }
 
-body.nt-story-footer-active .footer-section .nav-container.is-footer,
-body.nt-story-footer-active .footer-section .footer-buttons,
-body.nt-story-footer-active .footer-section .footer-contact,
-body.nt-story-footer-active .footer-section .footer-cta-contain,
-body.nt-story-footer-active .footer-section .footer-legal-div {
-  animation: nt-story-footer-text-in 760ms cubic-bezier(0.2, 0.72, 0.16, 1) both;
-  will-change: opacity, transform;
-}
-
-body.nt-story-footer-active .footer-section .footer-final::before {
-  animation: nt-story-footer-final-in 640ms cubic-bezier(0.2, 0.72, 0.16, 1) both;
-  animation-delay: 60ms;
-}
-
-body.nt-story-footer-active .footer-section .footer-buttons {
-  animation-delay: 70ms;
-}
-
-body.nt-story-footer-active .footer-section .footer-contact {
-  animation-delay: 120ms;
-}
-
-body.nt-story-footer-active .footer-section .footer-cta-contain {
-  animation-delay: 180ms;
-}
-
-body.nt-story-footer-active .footer-section .footer-legal-div {
-  animation-delay: 240ms;
-}
-
-@keyframes nt-story-footer-text-in {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 1rem, 0);
-  }
-
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-/* Footer headline settle: a short, em-small rise + fade so "Jo Mendes" lands in
-   its final layout position rather than floating up a full 6em line height late
-   in the hand-off. Matches the restrained entrance of the rest of the footer. */
-@keyframes nt-story-footer-final-in {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 0.22em, 0);
-  }
-
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-/* ============================================================
-   Desktop-only parallax testimonial overlay (Process -> footer).
-   A tall white section, cloned at build time from the mirror's
-   existing quotes grid, is pinned over the static Process state
-   and scrolled upward through two viewport-height beats before
-   the final footer scrub. Driven only by the story input on
-   desktop (one gesture = one beat); never adds a scrollbar.
-   ============================================================ */
-.nt-parallax-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9997;
-  overflow: hidden;
-  background: #fff;
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  contain: paint;
-  transform: translateZ(0);
-}
-
-.nt-parallax-overlay.is-active {
-  opacity: 1;
-  visibility: visible;
-}
-
-/* While the overlay owns the screen, explicitly suppress the Process backdrop +
-   copy and the shared fixed still / body image, so nothing of the previous state
-   can show behind the overlay — or behind the transparent footer-takeover
-   transition layer that follows. visibility / opacity only (no display or height
-   change) so the locked scroll position never shifts. Placed after the
-   fixed-visual rules above so it also overrides .nt-story-fixed-visual.is-visible. */
-body.nt-parallax-active .nt-story-shell,
-body.nt-parallax-active .nt-story-fixed-visual {
-  visibility: hidden;
-}
-
-body.nt-parallax-active::before {
-  opacity: 0;
-}
-
-.nt-parallax-overlay-track {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  transform: translateY(100%);
-  transition: transform var(--nt-overlay-beat, 560ms) cubic-bezier(0.2, 0.72, 0.16, 1);
-  will-change: transform;
-}
-
-/* Beat 0 = hidden below the fold; beat 1 = top of the section;
-   beat 2 = bottom of the section bottom-aligned to the viewport. */
-.nt-parallax-overlay[data-step="0"] .nt-parallax-overlay-track {
-  transform: translateY(100%);
-}
-
-.nt-parallax-overlay[data-step="1"] .nt-parallax-overlay-track {
-  transform: translateY(0);
-}
-
-.nt-parallax-overlay[data-step="2"] .nt-parallax-overlay-track {
-  transform: translateY(calc(100vh - 100%));
-}
-
-/* Present the cloned quotes grid inside the overlay track. */
-.nt-parallax-overlay-track .quotes-container {
-  width: 100%;
-  padding: 8vh 5vw 10vh;
-  box-sizing: border-box;
-}
-
-/* The original centre mark is an (empty) WebGL canvas in the mirror;
-   buildParallaxOverlay() swaps it for a static red Nomada mark. */
-.nt-parallax-overlay .div-block.is-nm.webgl {
-  position: relative;
-  top: auto;
-}
-
-.nt-parallax-mark {
-  color: var(--nomada-red, #7a1f1b);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.nt-parallax-mark svg {
-  width: clamp(120px, 15vw, 240px);
-  height: auto;
-  display: block;
-}
-
-/* Desktop-only showcase: never render below the story desktop breakpoint. */
-@media (max-width: 991px) {
-  .nt-parallax-overlay {
-    display: none !important;
-  }
+/* Atom 2.0 removes the testimonial parallax overlay entirely. */
+.nt-parallax-overlay,
+body.nt-parallax-active .nt-parallax-overlay {
+  display: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
