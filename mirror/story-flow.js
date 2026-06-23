@@ -1,26 +1,27 @@
 (function () {
   var ASSET_ROOT = "./story-assets/";
-  var HERO_IMAGE = ASSET_ROOT + "hero-static.jpeg?v=frame-parity-20260623-1";
-  var HERO_WATER_IMAGE = ASSET_ROOT + "hero-water.png";
+  var ASSET_VERSION = "?v=atom-2-reveal-scrub-20260623-1";
+  var ATOM_IMAGE_1 = ASSET_ROOT + "atom-2-image-1.png" + ASSET_VERSION;
+  var ATOM_IMAGE_2 = ASSET_ROOT + "atom-2-image-2.png" + ASSET_VERSION;
+  var HERO_IMAGE = ATOM_IMAGE_1;
+  var HERO_WATER_IMAGE = ATOM_IMAGE_2;
+  var FINAL_SCRUB_VIDEO = ASSET_ROOT + "atom-2-scroll-video.mp4" + ASSET_VERSION;
+  var SCRUB_END_TIME = 13;
+  var SCRUB_WHEEL_VIEWPORTS = 3.2;
+  var SCRUB_TOUCH_VIEWPORTS = 2.4;
+  var SCRUB_KEY_STEP = 0.075;
+  var SCRUB_PAGE_KEY_STEP = 0.16;
+  var SCRUB_TRANSITION_DURATION_MS = 900;
   var VIDEO_PLAYBACK_RATE = 1.9;
   var HANDOFF_FADE_MS = 200;
   var HANDOFF_DECODE_TIMEOUT_MS = 120;
   var WHEEL_TRIGGER_DELTA = 4;
   var WHEEL_RESET_MS = 180;
   var TOUCH_TRIGGER_DELTA = 18;
-  var FINAL_STATE_INDEX = 4;
-  var PROCESS_STATE_INDEX = 3;
-  var OVERLAY_BEATS = 2;
-  var OVERLAY_BEAT_MS = 560;
-  var PARALLAX_MARK_SVG =
-    '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Nomada Toast">' +
-    '<g fill="currentColor">' +
-    '<rect x="42.5" y="9" width="15" height="82" rx="7"/>' +
-    '<rect x="9" y="42.5" width="82" height="15" rx="7"/>' +
-    "</g></svg>";
-  var FINAL_SCRUB_VIDEO = ASSET_ROOT + "chapter-4-forward-scrub.mp4";
+  var SCRUB_START_STATE_INDEX = 0;
+  var FINAL_STATE_INDEX = 3;
   var FINAL_SCRUB_FPS = 24;
-  var FINAL_SCRUB_EASE = 0.06;
+  var FINAL_SCRUB_EASE = 0.18;
   var FINAL_SCRUB_SETTLE_EPSILON = 0.0015;
   var FINAL_SCRUB_SEEK_EPSILON = 0.02;
   var LOCKED_KEYS = {
@@ -40,14 +41,14 @@
       }
     },
     {
-      image: ASSET_ROOT + "story-point-1.png?v=frame-parity-20260623-1",
+      image: "",
       text: {
         title: ["Composed", "Spaces"],
         subtitle: "Lasting Atmosphere."
       }
     },
     {
-      image: ASSET_ROOT + "story-point-2.png?v=frame-parity-20260623-1",
+      image: "",
       text: {
         title: ["Story", "Led", "Spaces"],
         subtitle: "Interior Design, Composed.",
@@ -59,7 +60,7 @@
       }
     },
     {
-      image: ASSET_ROOT + "story-point-3.png?v=frame-parity-20260623-1",
+      image: "",
       text: {
         title: ["Process"],
         subtitle: "Initial Atmosphere. Design Direction. Material Resolution.",
@@ -69,42 +70,10 @@
           variant: "lede"
         }
       }
-    },
-    {
-      image: ASSET_ROOT + "puppy-finale-focused.jpg?v=frame-parity-20260623-1",
-      text: {
-        title: ["Jo", "Mendes"],
-        subtitle: "Nomada Toast Services"
-      }
     }
   ];
 
-  var edges = [
-    {
-      fromState: 0,
-      toState: 1,
-      forwardVideo: ASSET_ROOT + "chapter-1-forward.mp4",
-      reverseVideo: ASSET_ROOT + "chapter-1-reverse.mp4"
-    },
-    {
-      fromState: 1,
-      toState: 2,
-      forwardVideo: ASSET_ROOT + "chapter-2-forward.mp4",
-      reverseVideo: ASSET_ROOT + "chapter-2-reverse.mp4"
-    },
-    {
-      fromState: 2,
-      toState: 3,
-      forwardVideo: ASSET_ROOT + "chapter-3-forward.mp4",
-      reverseVideo: ASSET_ROOT + "chapter-3-reverse.mp4"
-    },
-    {
-      fromState: 3,
-      toState: 4,
-      forwardVideo: ASSET_ROOT + "chapter-4-forward.mp4",
-      reverseVideo: ASSET_ROOT + "chapter-4-reverse.mp4"
-    }
-  ];
+  var edges = [];
 
   var currentState = 0;
   var heroSection = null;
@@ -117,13 +86,12 @@
   var lockedScrollY = 0;
   var restSections = [];
   var targets = [];
-  var parallaxOverlay = null;
-  var overlayProgress = 0;
-  var overlayTimer = 0;
   var transitionLayer;
   var fixedVisualLayer;
   var fixedVisualImage;
   var finalScrubVideo;
+  var finalScrubActive = false;
+  var finalScrubTransition = null;
   var finalScrubReadyPromise = null;
   var finalScrubResolve = null;
   var finalScrubVideoReady = false;
@@ -131,6 +99,7 @@
   var finalScrubRatio = 0;
   var finalScrubDisplayRatio = 0;
   var finalScrubFrame = 0;
+  var finalScrubDurationWarned = false;
   var restVisualImage;
   var heroStaticLayer;
   var heroStaticImage;
@@ -163,7 +132,6 @@
     buildFixedVisualLayer();
     buildTransitionLayer();
     buildFinalFooterVideo(footer);
-    buildParallaxOverlay();
     targets = [hero].concat(restSections).concat([footer]);
 
     setVisualForState(0);
@@ -760,109 +728,6 @@
     document.body.appendChild(transitionLayer);
   }
 
-  // Clone the mirror's existing testimonial quotes grid into a fixed overlay
-  // that sits above the Process backdrop. The grid is reused verbatim; only the
-  // inert WebGL centre canvas is swapped for a static red Nomada mark. Layout
-  // and engagement are gated to desktop via CSS + parallaxOverlayEnabled().
-  function buildParallaxOverlay() {
-    var source = document.querySelector(".quotes-container");
-    if (!source) {
-      return;
-    }
-
-    parallaxOverlay = document.createElement("div");
-    parallaxOverlay.className = "nt-parallax-overlay";
-    parallaxOverlay.setAttribute("aria-hidden", "true");
-    parallaxOverlay.setAttribute("data-step", "0");
-    parallaxOverlay.style.setProperty("--nt-overlay-beat", OVERLAY_BEAT_MS + "ms");
-
-    var track = document.createElement("div");
-    track.className = "nt-parallax-overlay-track";
-
-    var clone = source.cloneNode(true);
-    clone.querySelectorAll("[id]").forEach(function (node) {
-      node.removeAttribute("id");
-    });
-
-    var markHost = clone.querySelector(".webgl-container");
-    if (markHost) {
-      markHost.classList.add("nt-parallax-mark");
-      markHost.innerHTML = PARALLAX_MARK_SVG;
-    }
-    clone.querySelectorAll("canvas").forEach(function (canvas) {
-      canvas.remove();
-    });
-
-    track.appendChild(clone);
-    parallaxOverlay.appendChild(track);
-    document.body.appendChild(parallaxOverlay);
-  }
-
-  function parallaxOverlayEnabled() {
-    return !!parallaxOverlay && !reducedMotion && window.matchMedia("(min-width: 992px)").matches;
-  }
-
-  // While resting on Process (state 3) the overlay consumes forward/back input
-  // for its two beats before deferring to the real Process<->footer transition.
-  // Returns true when the input was handled by the overlay (do not transition).
-  function maybeHandleProcessOverlay(toState) {
-    if (!parallaxOverlayEnabled() || currentState !== PROCESS_STATE_INDEX) {
-      return false;
-    }
-
-    var direction = toState > currentState ? 1 : -1;
-
-    if (direction > 0) {
-      if (overlayProgress < OVERLAY_BEATS) {
-        runOverlayBeat(overlayProgress + 1);
-        return true;
-      }
-      return false;
-    }
-
-    if (overlayProgress > 0) {
-      runOverlayBeat(overlayProgress - 1);
-      return true;
-    }
-
-    return false;
-  }
-
-  // Advance/retract one beat. Scroll stays pinned at Process (deterministic, no
-  // free-scroll, no jump); the white section translates via its CSS transition.
-  function runOverlayBeat(nextProgress) {
-    overlayProgress = nextProgress;
-    inputLocked = true;
-    lockStoryScroll(PROCESS_STATE_INDEX);
-    parallaxOverlay.classList.toggle("is-active", overlayProgress > 0);
-    parallaxOverlay.setAttribute("data-step", String(overlayProgress));
-    // Explicit ownership flag (not paint-order luck): while the overlay owns the
-    // screen, CSS suppresses the Process backdrop, copy and the shared fixed
-    // still so nothing of the previous state can show behind the overlay — or
-    // behind the transparent footer-takeover transition layer that follows.
-    document.body.classList.toggle("nt-parallax-active", overlayProgress > 0);
-
-    window.clearTimeout(overlayTimer);
-    overlayTimer = window.setTimeout(function () {
-      if (overlayProgress === 0) {
-        unlockStoryScroll();
-      } else {
-        inputLocked = false;
-      }
-    }, OVERLAY_BEAT_MS + 80);
-  }
-
-  function resetParallaxOverlay() {
-    document.body.classList.remove("nt-parallax-active");
-    if (!parallaxOverlay) {
-      return;
-    }
-    window.clearTimeout(overlayTimer);
-    overlayProgress = 0;
-    parallaxOverlay.classList.remove("is-active");
-    parallaxOverlay.setAttribute("data-step", "0");
-  }
-
   function buildFixedVisualLayer() {
     fixedVisualLayer = document.createElement("div");
     fixedVisualLayer.className = "nt-story-fixed-visual";
@@ -878,24 +743,21 @@
   }
 
   function buildFinalFooterVideo(footer) {
-    var existingVideo = footer.querySelector(".nt-story-footer-video");
-
-    if (existingVideo) {
-      finalScrubVideo = existingVideo;
-    } else {
-      finalScrubVideo = document.createElement("video");
-      finalScrubVideo.className = "nt-story-footer-video";
-      finalScrubVideo.muted = true;
-      finalScrubVideo.playsInline = true;
-      finalScrubVideo.preload = "auto";
-      finalScrubVideo.poster = getStateImage(FINAL_STATE_INDEX);
-      finalScrubVideo.setAttribute("muted", "");
-      finalScrubVideo.setAttribute("playsinline", "");
-      finalScrubVideo.setAttribute("preload", "auto");
-      finalScrubVideo.setAttribute("aria-hidden", "true");
-      finalScrubVideo.src = FINAL_SCRUB_VIDEO;
-      footer.insertBefore(finalScrubVideo, footer.firstChild);
+    if (!footer) {
+      return;
     }
+
+    finalScrubVideo = document.createElement("video");
+    finalScrubVideo.className = "nt-story-transition-video nt-story-scroll-scrub-video";
+    finalScrubVideo.muted = true;
+    finalScrubVideo.playsInline = true;
+    finalScrubVideo.preload = "auto";
+    finalScrubVideo.poster = getStateImage(FINAL_STATE_INDEX);
+    finalScrubVideo.setAttribute("muted", "");
+    finalScrubVideo.setAttribute("playsinline", "");
+    finalScrubVideo.setAttribute("preload", "auto");
+    finalScrubVideo.setAttribute("aria-hidden", "true");
+    finalScrubVideo.src = FINAL_SCRUB_VIDEO;
 
     finalScrubVideo.pause();
     finalScrubVideo.addEventListener("loadedmetadata", markFinalScrubVideoReady);
@@ -912,16 +774,21 @@
     window.addEventListener("touchend", handleTouchEnd, { passive: false });
     window.addEventListener("touchcancel", handleTouchEnd, { passive: false });
     window.addEventListener("keydown", handleKeyDown, { passive: false });
-    window.addEventListener("mousemove", handleMouseMove, { passive: true });
   }
 
   function handleWheel(event) {
+    var rawDirection = getRawDirection(event.deltaY);
+
+    if (handleFinalScrubInput(rawDirection, event.deltaY / getScrubWheelDistance())) {
+      stopInput(event);
+      return;
+    }
+
     if (inputLocked) {
       stopInput(event);
       return;
     }
 
-    var rawDirection = getRawDirection(event.deltaY);
     if (!rawDirection) {
       return;
     }
@@ -983,6 +850,12 @@
     var delta = touchStartY - event.touches[0].clientY;
     var direction = getRawDirection(delta);
 
+    if (handleFinalScrubInput(direction, delta / getScrubTouchDistance())) {
+      stopInput(event);
+      touchStartY = event.touches[0].clientY;
+      return;
+    }
+
     if (!direction || !canMove(direction)) {
       return;
     }
@@ -1024,6 +897,11 @@
       return;
     }
 
+    if (handleFinalScrubInput(direction, getKeyScrubDelta(event, direction))) {
+      stopInput(event);
+      return;
+    }
+
     if (direction > 0 && isFinalStateActive()) {
       stopInput(event);
       scrollToState(FINAL_STATE_INDEX);
@@ -1042,11 +920,49 @@
     beginTransition(currentState + direction);
   }
 
-  function handleMouseMove(event) {
-    finalScrubRatio = clamp(event.clientX / Math.max(1, window.innerWidth), 0, 1);
+  function handleFinalScrubInput(direction, progressDelta) {
+    if (!direction) {
+      return false;
+    }
 
-    if (!isFinalStateActive()) {
-      finalScrubDisplayRatio = finalScrubRatio;
+    if (!finalScrubActive) {
+      if (currentState === SCRUB_START_STATE_INDEX && direction > 0) {
+        activateFinalScrub(createFinalScrubTransition(1), 0);
+      } else if (isFinalStateActive() && direction < 0) {
+        activateFinalScrub(createFinalScrubTransition(-1), 1);
+      } else {
+        return false;
+      }
+    }
+
+    updateFinalScrubRatio(progressDelta, direction);
+    return true;
+  }
+
+  function getScrubWheelDistance() {
+    return Math.max(1, window.innerHeight || 1) * SCRUB_WHEEL_VIEWPORTS;
+  }
+
+  function getScrubTouchDistance() {
+    return Math.max(1, window.innerHeight || 1) * SCRUB_TOUCH_VIEWPORTS;
+  }
+
+  function getKeyScrubDelta(event, direction) {
+    var amount = event.key === "PageDown" || event.key === "PageUp" || event.key === " " ?
+      SCRUB_PAGE_KEY_STEP :
+      SCRUB_KEY_STEP;
+
+    return direction * amount;
+  }
+
+  function updateFinalScrubRatio(progressDelta, direction) {
+    var previousRatio = finalScrubRatio;
+
+    finalScrubRatio = clamp(finalScrubRatio + progressDelta, 0, 1);
+
+    if (finalScrubRatio <= 0 && direction < 0) {
+      exitFinalScrub();
+      return;
     }
 
     scheduleFinalScrubUpdate();
@@ -1110,7 +1026,7 @@
     var ticking = false;
 
     window.addEventListener("scroll", function () {
-      if (inputLocked) {
+      if (inputLocked || finalScrubActive) {
         window.requestAnimationFrame(function () {
           forceScrollTo(lockedScrollY);
         });
@@ -1130,10 +1046,8 @@
   }
 
   function syncCurrentStateFromViewport() {
-    // Once committed to the footer/final state, never let a viewport re-scan demote
-    // it. The footer is mouse-scrub driven and reverse navigation is an explicit
-    // wheel/key/touch gesture (beginTransition), so a scroll-position guess here
-    // would only bounce the user back into the previous video/state.
+    // Once committed to the frozen final frame, never let a viewport re-scan demote
+    // it. Reverse navigation is handled explicitly by the scroll-scrub controller.
     if (currentState === FINAL_STATE_INDEX) {
       return;
     }
@@ -1162,13 +1076,14 @@
   }
 
   function beginTransition(toState) {
-    if (maybeHandleProcessOverlay(toState)) {
-      return;
-    }
-
     var transition = createTransition(toState);
 
     if (!transition || inputLocked) {
+      return;
+    }
+
+    if (transition.finalScrub) {
+      activateFinalScrub(transition);
       return;
     }
 
@@ -1200,6 +1115,10 @@
     var direction = toState > currentState ? 1 : -1;
     var edge = edges[Math.min(currentState, toState)];
 
+    if (currentState === SCRUB_START_STATE_INDEX && direction > 0) {
+      return createFinalScrubTransition(direction);
+    }
+
     if (!edge || Math.abs(toState - currentState) !== 1) {
       return null;
     }
@@ -1208,9 +1127,20 @@
       fromState: currentState,
       toState: toState,
       direction: direction,
-      video: direction > 0 ? edge.forwardVideo : edge.reverseVideo,
+      video: null,
       destinationImage: getStateImage(toState),
       finalScrub: direction > 0 && toState === FINAL_STATE_INDEX
+    };
+  }
+
+  function createFinalScrubTransition(direction) {
+    return {
+      fromState: SCRUB_START_STATE_INDEX,
+      toState: FINAL_STATE_INDEX,
+      direction: direction || 1,
+      video: null,
+      destinationImage: getStateImage(FINAL_STATE_INDEX),
+      finalScrub: true
     };
   }
 
@@ -1223,13 +1153,9 @@
       });
     }
 
-    if (transition.finalScrub) {
-      return Promise.all([
-        ensureFinalScrubVideoReady(),
-        prepareVideo(transition.video),
-        imageReady
-      ]).then(function (results) {
-        return { video: results[1] };
+    if (transition.finalScrub || !transition.video) {
+      return imageReady.then(function () {
+        return { video: null };
       });
     }
 
@@ -1242,8 +1168,18 @@
   }
 
   function playTransition(transition, video) {
-    if (reducedMotion || !video) {
+    if (transition.finalScrub) {
+      activateFinalScrub(transition);
+      return;
+    }
+
+    if (reducedMotion) {
       commitTransition(transition, null);
+      return;
+    }
+
+    if (!video) {
+      playStillTransition(transition);
       return;
     }
 
@@ -1264,20 +1200,8 @@
     transitionLayer.toggleAttribute("data-final-scrub", transition.finalScrub);
     applyHeroThreadAnchor(transition);
 
-    if (transition.finalScrub) {
-      // Footer takeover: the desktop parallax quotes overlay is still mounted and
-      // owns the screen beneath this (transparent) transition layer, so we omit
-      // the Process still underlay AND the copy thread. Re-mounting either would
-      // re-reveal the Process backdrop and the "Process" thread copy we just
-      // covered, reading as a remnant/bounce. Instead the dog video slides up
-      // over the quotes as a parallax continuation (see CSS final-video-takeover).
-      // When the overlay is disabled the fixed Process still simply shows behind,
-      // exactly as before.
-      transitionLayer.replaceChildren(video);
-    } else {
-      transitionLayer.replaceChildren(video);
-      mountTransitionText(transition, video);
-    }
+    transitionLayer.replaceChildren(video);
+    mountTransitionText(transition, video);
 
     transitionLayer.classList.add("is-visible");
     document.body.classList.add("nt-story-video-active");
@@ -1288,6 +1212,133 @@
         commitTransition(transition, video);
       });
     }
+  }
+
+  function playStillTransition(transition) {
+    var duration = SCRUB_TRANSITION_DURATION_MS;
+
+    transitionLayer.style.setProperty("--nt-transition-duration", duration + "ms");
+    transitionLayer.removeAttribute("data-final-scrub");
+    transitionLayer.removeAttribute("data-scroll-scrub");
+    applyHeroThreadAnchor(transition);
+    transitionLayer.replaceChildren(createTransitionUnderlay(transition));
+    mountTransitionText(transition, duration);
+    transitionLayer.classList.add("is-visible");
+    document.body.classList.add("nt-story-video-active");
+
+    window.setTimeout(function () {
+      commitTransition(transition, null);
+    }, duration);
+  }
+
+  function activateFinalScrub(transition, initialRatio) {
+    if (!transition || !finalScrubVideo || finalScrubVideoFailed) {
+      return;
+    }
+
+    if (typeof initialRatio === "number") {
+      finalScrubRatio = clamp(initialRatio, 0, 1);
+      finalScrubDisplayRatio = finalScrubRatio;
+    }
+
+    finalScrubTransition = transition;
+    activeTransition = transition;
+    finalScrubActive = true;
+    inputLocked = false;
+    lockStoryScroll(SCRUB_START_STATE_INDEX);
+    inputLocked = false;
+
+    ensureFinalScrubVideoReady();
+    finalScrubVideo.pause();
+    finalScrubVideo.classList.add("nt-story-transition-video");
+    finalScrubVideo.setAttribute("data-active-transition", "true");
+
+    transitionLayer.style.setProperty("--nt-transition-duration", SCRUB_TRANSITION_DURATION_MS + "ms");
+    transitionLayer.removeAttribute("data-final-scrub");
+    transitionLayer.setAttribute("data-scroll-scrub", "");
+    applyHeroThreadAnchor(transition);
+
+    if (finalScrubVideo.parentElement !== transitionLayer || !transitionLayer.querySelector(".nt-story-copy-rail")) {
+      transitionLayer.replaceChildren(finalScrubVideo);
+      mountTransitionText(transition, SCRUB_TRANSITION_DURATION_MS);
+      var thread = transitionLayer.querySelector(".nt-story-copy-thread");
+      if (thread) {
+        thread.classList.add("is-scrubbed");
+      }
+    }
+
+    transitionLayer.classList.add("is-visible");
+    document.body.classList.add("nt-story-video-active");
+    document.body.classList.add("nt-story-scroll-scrub-active");
+    updateFinalScrubThread(finalScrubDisplayRatio);
+    scheduleFinalScrubUpdate();
+  }
+
+  function exitFinalScrub() {
+    if (!finalScrubActive) {
+      return;
+    }
+
+    finalScrubActive = false;
+    finalScrubTransition = null;
+    activeTransition = null;
+    finalScrubRatio = 0;
+    finalScrubDisplayRatio = 0;
+
+    if (finalScrubVideo) {
+      finalScrubVideo.pause();
+      finalScrubVideo.removeAttribute("data-active-transition");
+      try {
+        finalScrubVideo.currentTime = 0;
+      } catch (error) {
+        window.console.warn("Scroll scrub video could not reset to the first frame.", error);
+      }
+    }
+
+    transitionLayer.classList.remove("is-visible");
+    transitionLayer.removeAttribute("data-scroll-scrub");
+    transitionLayer.replaceChildren();
+    transitionLayer.style.removeProperty("--nt-transition-duration");
+    clearHeroThreadAnchor();
+    document.body.classList.remove("nt-story-video-active");
+    document.body.classList.remove("nt-story-scroll-scrub-active");
+    currentState = SCRUB_START_STATE_INDEX;
+    setVisualForState(currentState);
+    scrollToState(currentState);
+    unlockStoryScroll();
+  }
+
+  function updateFinalScrubThread(progress) {
+    var thread = transitionLayer ? transitionLayer.querySelector(".nt-story-copy-thread.is-scrubbed") : null;
+    var transition = finalScrubTransition;
+    var fromState = transition ? transition.fromState : SCRUB_START_STATE_INDEX;
+    var toState = transition ? transition.toState : FINAL_STATE_INDEX;
+    var y = -((fromState + ((toState - fromState) * clamp(progress, 0, 1))) * 100);
+
+    if (thread) {
+      thread.style.transform = "translate3d(0, " + y + "vh, 0)";
+    }
+  }
+
+  function syncFinalScrubStoryState(progress) {
+    var clampedProgress = clamp(progress, 0, 1);
+
+    if (clampedProgress >= 1 - FINAL_SCRUB_SETTLE_EPSILON) {
+      if (currentState !== FINAL_STATE_INDEX) {
+        currentState = FINAL_STATE_INDEX;
+        setVisualForState(FINAL_STATE_INDEX);
+      }
+      lockedScrollY = getStateScrollY(FINAL_STATE_INDEX);
+      forceScrollTo(lockedScrollY);
+      return;
+    }
+
+    if (currentState !== SCRUB_START_STATE_INDEX) {
+      currentState = SCRUB_START_STATE_INDEX;
+      setVisualForState(currentState);
+    }
+    lockedScrollY = getStateScrollY(currentState);
+    forceScrollTo(lockedScrollY);
   }
 
   function getTransitionDuration(video) {
@@ -1397,7 +1448,7 @@
   function mountTransitionText(transition, video) {
     var overlay = document.createElement("div");
     var thread = document.createElement("div");
-    var duration = getTransitionDuration(video);
+    var duration = typeof video === "number" ? video : getTransitionDuration(video);
 
     overlay.className = "nt-story-copy-rail";
     overlay.setAttribute("aria-hidden", "true");
@@ -1622,12 +1673,6 @@
     document.body.setAttribute("data-nt-story-state", String(state));
     document.body.classList.toggle("nt-story-footer-active", state === FINAL_STATE_INDEX);
 
-    // Any committed move off Process clears the parallax overlay so it is hidden
-    // at the footer and re-armed cleanly the next time Process is reached.
-    if (state !== PROCESS_STATE_INDEX) {
-      resetParallaxOverlay();
-    }
-
     syncRestBackgrounds(state);
     scheduleFinalScrubUpdate();
 
@@ -1705,7 +1750,7 @@
     finalScrubVideo.pause();
 
     try {
-      finalScrubVideo.currentTime = Math.max(0, finalScrubVideo.duration - 0.02);
+      finalScrubVideo.currentTime = Math.min(SCRUB_END_TIME, finalScrubVideo.duration);
     } catch (error) {
       window.console.warn("Footer scrub video could not be primed after transition.", error);
     }
@@ -1716,15 +1761,9 @@
       ensureImageReady(getStateImage(stateIndex));
     });
 
-    [state - 1, state].forEach(function (edgeIndex) {
-      var edge = edges[edgeIndex];
-      if (!edge) {
-        return;
-      }
-
-      preloadVideo(edge.forwardVideo);
-      preloadVideo(edge.reverseVideo);
-    });
+    if (state >= FINAL_STATE_INDEX - 1) {
+      preloadVideo(FINAL_SCRUB_VIDEO);
+    }
   }
 
   function preloadAllMedia() {
@@ -1732,11 +1771,6 @@
       ensureImageReady(getStateImage(stateIndex));
     });
     ensureImageReady(HERO_WATER_IMAGE);
-
-    edges.forEach(function (edge) {
-      preloadVideo(edge.forwardVideo);
-      preloadVideo(edge.reverseVideo);
-    });
 
     preloadVideo(FINAL_SCRUB_VIDEO);
   }
@@ -1890,6 +1924,15 @@
       return;
     }
 
+    if (finalScrubVideo.duration < SCRUB_END_TIME) {
+      finalScrubVideoFailed = true;
+      window.console.error("Atom 2.0 scroll scrub video is shorter than the required 13 second scrub end.", {
+        duration: finalScrubVideo.duration,
+        requiredDuration: SCRUB_END_TIME
+      });
+      return;
+    }
+
     finalScrubVideoReady = true;
     finalScrubVideo.pause();
     document.body.classList.add("nt-story-footer-scrub-ready");
@@ -1924,12 +1967,22 @@
   }
 
   function applyFinalScrubPosition() {
-    if (currentState !== FINAL_STATE_INDEX || !finalScrubVideo || !isVideoDurationReady(finalScrubVideo)) {
+    if (!finalScrubActive || !finalScrubVideo || !isVideoDurationReady(finalScrubVideo)) {
       return false;
     }
 
-    var duration = finalScrubVideo.duration;
-    var endTime = Math.max(0, duration - 0.02);
+    if (finalScrubVideo.duration < SCRUB_END_TIME) {
+      if (!finalScrubDurationWarned) {
+        finalScrubDurationWarned = true;
+        window.console.error("Atom 2.0 scroll scrub video cannot scrub to 13 seconds because metadata reports a shorter duration.", {
+          duration: finalScrubVideo.duration,
+          requiredDuration: SCRUB_END_TIME
+        });
+      }
+      return false;
+    }
+
+    var endTime = SCRUB_END_TIME;
     var ratioDelta = finalScrubRatio - finalScrubDisplayRatio;
 
     if (Math.abs(ratioDelta) <= FINAL_SCRUB_SETTLE_EPSILON) {
@@ -1941,10 +1994,16 @@
     var rawTime = clamp(finalScrubDisplayRatio, 0, 1) * endTime;
     var frameDuration = 1 / FINAL_SCRUB_FPS;
     var targetTime = clamp(Math.round(rawTime / frameDuration) * frameDuration, 0, endTime);
+    if (finalScrubDisplayRatio >= 1 - FINAL_SCRUB_SETTLE_EPSILON) {
+      targetTime = endTime;
+    }
 
     if (!finalScrubVideo.paused) {
       finalScrubVideo.pause();
     }
+
+    updateFinalScrubThread(finalScrubDisplayRatio);
+    syncFinalScrubStoryState(finalScrubDisplayRatio);
 
     if (Math.abs(finalScrubVideo.currentTime - targetTime) < FINAL_SCRUB_SEEK_EPSILON) {
       return Math.abs(finalScrubRatio - finalScrubDisplayRatio) > FINAL_SCRUB_SETTLE_EPSILON;
