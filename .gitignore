@@ -1,0 +1,22 @@
+# macOS
+.DS_Store
+
+# Dependencies and local environment
+node_modules/
+.env
+.env.*
+
+# Local tooling and QA artifacts
+.claude/
+.playwright-mcp/
+reports/
+validation-shots/
+
+# Generated mirror/audit files
+asset-graph*.json
+mirror/mirror-manifest.json
+
+# Source-only media and temporary frame assets
+Atom Assets 1.0/
+mirror/story-assets/_frame-candidates/
+mirror/story-assets/_original-stills-backup/
