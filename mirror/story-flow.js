@@ -1,6 +1,6 @@
 (function () {
   var ASSET_ROOT = "./story-assets/";
-  var ASSET_VERSION = "?v=atom-2-reveal-scrub-20260623-1";
+  var ASSET_VERSION = "?v=atom-2-smooth-scrub-20260623-1";
   var ATOM_IMAGE_1 = ASSET_ROOT + "atom-2-image-1.png" + ASSET_VERSION;
   var ATOM_IMAGE_2 = ASSET_ROOT + "atom-2-image-2.png" + ASSET_VERSION;
   var HERO_IMAGE = ATOM_IMAGE_1;
