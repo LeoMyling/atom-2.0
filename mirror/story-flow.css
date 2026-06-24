@@ -188,7 +188,9 @@ body.nt-story-active .hero-section.is-home:not(.power) canvas {
 .nt-story-hero-static {
   --nt-water-x: 50%;
   --nt-water-y: 50%;
-  --nt-water-size: min(32vw, 460px);
+  --nt-water-size: clamp(360px, 32vw, 480px);
+  --nt-water-radius: calc(var(--nt-water-size) * 0.5);
+  --nt-water-feather: clamp(8px, 0.7vw, 12px);
   position: absolute;
   inset: 0;
   z-index: 0;
@@ -196,6 +198,29 @@ body.nt-story-active .hero-section.is-home:not(.power) canvas {
   background: #111;
   pointer-events: none;
   transform: translateZ(0);
+}
+
+.nt-story-hero-static::after {
+  content: "";
+  position: absolute;
+  left: var(--nt-water-x);
+  top: var(--nt-water-y);
+  width: var(--nt-water-size);
+  height: var(--nt-water-size);
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow:
+    0 0 0 1px rgba(17, 17, 17, 0.12),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 0 14px rgba(255, 255, 255, 0.05);
+  transition: opacity 140ms ease-out;
+}
+
+.nt-story-hero-static.is-water-active::after {
+  opacity: 1;
 }
 
 .nt-story-hero-base-image,
@@ -226,22 +251,24 @@ body.nt-story-active .hero-section.is-home:not(.power) canvas {
 body:not(.nt-story-scroll-scrub-active) .nt-story-hero-static.is-water-active .nt-story-hero-video {
   -webkit-mask-image:
     radial-gradient(
-      ellipse calc(var(--nt-water-size) * 1.08) calc(var(--nt-water-size) * 0.76) at var(--nt-water-x) var(--nt-water-y),
-      rgba(0, 0, 0, 0) 0%,
-      rgba(0, 0, 0, 0) 34%,
-      rgba(0, 0, 0, 0.28) 50%,
-      rgba(0, 0, 0, 0.72) 66%,
-      rgba(0, 0, 0, 1) 100%
+      circle at var(--nt-water-x) var(--nt-water-y),
+      rgba(0, 0, 0, 0) 0,
+      rgba(0, 0, 0, 0) calc(var(--nt-water-radius) - var(--nt-water-feather)),
+      rgba(0, 0, 0, 0.18) calc(var(--nt-water-radius) - (var(--nt-water-feather) * 0.35)),
+      rgba(0, 0, 0, 0.88) calc(var(--nt-water-radius) + (var(--nt-water-feather) * 0.45)),
+      rgba(0, 0, 0, 1) calc(var(--nt-water-radius) + var(--nt-water-feather))
     );
+  -webkit-mask-repeat: no-repeat;
   mask-image:
     radial-gradient(
-      ellipse calc(var(--nt-water-size) * 1.08) calc(var(--nt-water-size) * 0.76) at var(--nt-water-x) var(--nt-water-y),
-      rgba(0, 0, 0, 0) 0%,
-      rgba(0, 0, 0, 0) 34%,
-      rgba(0, 0, 0, 0.28) 50%,
-      rgba(0, 0, 0, 0.72) 66%,
-      rgba(0, 0, 0, 1) 100%
+      circle at var(--nt-water-x) var(--nt-water-y),
+      rgba(0, 0, 0, 0) 0,
+      rgba(0, 0, 0, 0) calc(var(--nt-water-radius) - var(--nt-water-feather)),
+      rgba(0, 0, 0, 0.18) calc(var(--nt-water-radius) - (var(--nt-water-feather) * 0.35)),
+      rgba(0, 0, 0, 0.88) calc(var(--nt-water-radius) + (var(--nt-water-feather) * 0.45)),
+      rgba(0, 0, 0, 1) calc(var(--nt-water-radius) + var(--nt-water-feather))
     );
+  mask-repeat: no-repeat;
 }
 
 body.nt-story-video-active:not(.nt-story-scroll-scrub-active) .nt-story-hero-static,
