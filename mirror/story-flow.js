@@ -956,8 +956,6 @@
   }
 
   function updateFinalScrubRatio(progressDelta, direction) {
-    var previousRatio = finalScrubRatio;
-
     finalScrubRatio = clamp(finalScrubRatio + progressDelta, 0, 1);
 
     if (finalScrubRatio <= 0 && direction < 0) {
@@ -965,6 +963,7 @@
       return;
     }
 
+    applyFinalScrubPosition();
     scheduleFinalScrubUpdate();
   }
 
@@ -1249,8 +1248,11 @@
     inputLocked = false;
 
     ensureFinalScrubVideoReady();
+    warmFinalScrubVideo();
     finalScrubVideo.pause();
+    primeFinalScrubVideoToRatio(finalScrubDisplayRatio);
     finalScrubVideo.classList.add("nt-story-transition-video");
+    moveFinalScrubVideoToTransition();
     finalScrubVideo.setAttribute("data-active-transition", "true");
 
     transitionLayer.style.setProperty("--nt-transition-duration", SCRUB_TRANSITION_DURATION_MS + "ms");
@@ -1295,6 +1297,7 @@
       }
     }
 
+    restoreFinalScrubVideoToHero();
     transitionLayer.classList.remove("is-visible");
     transitionLayer.removeAttribute("data-scroll-scrub");
     transitionLayer.replaceChildren();
@@ -1920,7 +1923,7 @@
   }
 
   function markFinalScrubVideoReady() {
-    if (!finalScrubVideo || finalScrubVideoReady || finalScrubVideoFailed || !isVideoDurationReady(finalScrubVideo)) {
+    if (!finalScrubVideo || finalScrubVideoReady || finalScrubVideoFailed || !isVideoDurationReady(finalScrubVideo) || finalScrubVideo.readyState < 2) {
       return;
     }
 
@@ -1935,6 +1938,7 @@
 
     finalScrubVideoReady = true;
     finalScrubVideo.pause();
+    primeFinalScrubVideoToRatio(finalScrubActive ? finalScrubDisplayRatio : 0);
     document.body.classList.add("nt-story-footer-scrub-ready");
     scheduleFinalScrubUpdate();
 
@@ -1983,13 +1987,7 @@
     }
 
     var endTime = SCRUB_END_TIME;
-    var ratioDelta = finalScrubRatio - finalScrubDisplayRatio;
-
-    if (Math.abs(ratioDelta) <= FINAL_SCRUB_SETTLE_EPSILON) {
-      finalScrubDisplayRatio = finalScrubRatio;
-    } else {
-      finalScrubDisplayRatio += ratioDelta * FINAL_SCRUB_EASE;
-    }
+    finalScrubDisplayRatio = finalScrubRatio;
 
     var rawTime = clamp(finalScrubDisplayRatio, 0, 1) * endTime;
     var frameDuration = 1 / FINAL_SCRUB_FPS;
@@ -2004,6 +2002,8 @@
 
     updateFinalScrubThread(finalScrubDisplayRatio);
     syncFinalScrubStoryState(finalScrubDisplayRatio);
+    finalScrubVideo.setAttribute("data-scrub-ratio", finalScrubDisplayRatio.toFixed(4));
+    finalScrubVideo.setAttribute("data-scrub-time", targetTime.toFixed(3));
 
     if (Math.abs(finalScrubVideo.currentTime - targetTime) < FINAL_SCRUB_SEEK_EPSILON) {
       return Math.abs(finalScrubRatio - finalScrubDisplayRatio) > FINAL_SCRUB_SETTLE_EPSILON;
@@ -2016,6 +2016,80 @@
     }
 
     return Math.abs(finalScrubRatio - finalScrubDisplayRatio) > FINAL_SCRUB_SETTLE_EPSILON;
+  }
+
+  function primeFinalScrubVideoToRatio(ratio) {
+    if (!finalScrubVideo || !isVideoDurationReady(finalScrubVideo)) {
+      return;
+    }
+
+    var endTime = Math.min(SCRUB_END_TIME, finalScrubVideo.duration);
+    var targetTime = clamp(ratio || 0, 0, 1) * endTime;
+
+    if (Math.abs(finalScrubVideo.currentTime - targetTime) < FINAL_SCRUB_SEEK_EPSILON) {
+      return;
+    }
+
+    try {
+      finalScrubVideo.currentTime = targetTime;
+    } catch (error) {
+      window.console.warn("Scroll scrub video could not be primed to the matching frame.", error);
+    }
+  }
+
+  function moveFinalScrubVideoToTransition() {
+    if (!transitionLayer || !finalScrubVideo) {
+      return;
+    }
+
+    finalScrubVideo.classList.add("nt-story-transition-video");
+
+    if (finalScrubVideo.parentElement !== transitionLayer) {
+      transitionLayer.replaceChildren(finalScrubVideo);
+      return;
+    }
+
+    if (transitionLayer.firstChild !== finalScrubVideo) {
+      transitionLayer.insertBefore(finalScrubVideo, transitionLayer.firstChild);
+    }
+  }
+
+  function restoreFinalScrubVideoToHero() {
+    if (!heroStaticLayer || !finalScrubVideo) {
+      return;
+    }
+
+    finalScrubVideo.classList.remove("nt-story-transition-video");
+
+    if (finalScrubVideo.parentElement === heroStaticLayer) {
+      return;
+    }
+
+    heroStaticLayer.appendChild(finalScrubVideo);
+  }
+
+  function warmFinalScrubVideo() {
+    if (!finalScrubVideo || finalScrubVideoFailed) {
+      return;
+    }
+
+    if (finalScrubVideo.readyState >= 2 && isVideoDurationReady(finalScrubVideo)) {
+      return;
+    }
+
+    try {
+      var playPromise = finalScrubVideo.play();
+      finalScrubVideo.pause();
+      if (playPromise && typeof playPromise.then === "function") {
+        playPromise.then(function () {
+          finalScrubVideo.pause();
+        }).catch(function () {
+          finalScrubVideo.pause();
+        });
+      }
+    } catch (error) {
+      finalScrubVideo.pause();
+    }
   }
 
   function isVideoDurationReady(video) {

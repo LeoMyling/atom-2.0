@@ -271,6 +271,14 @@ body.nt-story-video-active .nt-story-fixed-visual {
   visibility: hidden !important;
 }
 
+body.nt-story-scroll-scrub-active .nt-story-hero-static {
+  position: fixed;
+  inset: 0;
+  z-index: 9996;
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
 .nt-story-shell {
   position: relative;
   z-index: 9997;
